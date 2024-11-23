@@ -3,7 +3,7 @@ import threading
 import time
 
 
-class TimestampClient:
+class RESTSubscriber:
   def __init__(self, url='http://127.0.0.1:5000/timestamps', interval=5):
     self.url = url
     self.interval = interval
@@ -50,7 +50,7 @@ if __name__ == '__main__':
   def on_data_received(data):
     print('Received data:', data)
 
-  client = TimestampClient()
+  client = RESTSubscriber()
 
   unsubscribe = client.subscribe(on_data_received)
   client.start()

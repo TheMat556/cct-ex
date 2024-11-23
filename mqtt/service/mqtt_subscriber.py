@@ -5,7 +5,7 @@ import threading
 import json
 
 
-class MQTTClient:
+class MQTTSubscriber:
   def __init__(self, broker, port, topic):
     self._thread = None
     self.broker = broker
@@ -69,7 +69,7 @@ if __name__ == '__main__':
   def on_data_received(data):
     print('Received MQTT data:', data)
 
-  client = MQTTClient(broker='broker.hivemq.com', port=1883, topic='thagenberg')
+  client = MQTTSubscriber(broker='broker.hivemq.com', port=1883, topic='thagenberg')
 
   unsubscribe = client.subscribe(on_data_received)
 

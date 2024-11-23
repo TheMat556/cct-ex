@@ -1,14 +1,18 @@
+# app/main.py
 from flask import Flask, jsonify
-
 from util.generate_time_value import generate_time_value
 
-app = Flask(__name__)
 
+class TimestampApp:
+  def __init__(self):
+    self.app = Flask(__name__)
+    self.setup_routes()
 
-@app.route('/timestamps', methods=['GET'])
-def get_timestamps():
-  return jsonify(generate_time_value())
+  def setup_routes(self):
+    self.app.route('/timestamps', methods=['GET'])(self.get_timestamps)
 
+  def get_timestamps(self):
+    return jsonify(generate_time_value())
 
-if __name__ == '__main__':
-  app.run(debug=True, port=5000)
+  def run(self, debug=True, port=5000):
+    self.app.run(debug=debug, port=port)

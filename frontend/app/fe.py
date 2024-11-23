@@ -7,8 +7,8 @@ import plotly.express as px
 import threading
 from datetime import datetime
 
-from mqtt.service.mqtt_subscriber import MQTTClient
-from rest.microservice.client import TimestampClient
+from mqtt.service.mqtt_subscriber import MQTTSubscriber
+from rest.microservice.client import RESTSubscriber
 
 
 class DashDataVisualizer:
@@ -23,8 +23,10 @@ class DashDataVisualizer:
     self.app = dash.Dash(__name__)
 
     # Initialize clients
-    self.rest_client = TimestampClient(url=rest_url, interval=5)
-    self.mqtt_client = MQTTClient(broker=mqtt_broker, port=mqtt_port, topic=mqtt_topic)
+    self.rest_client = RESTSubscriber(url=rest_url, interval=5)
+    self.mqtt_client = MQTTSubscriber(
+      broker=mqtt_broker, port=mqtt_port, topic=mqtt_topic
+    )
 
     # Initialize empty DataFrames with correct columns
     self.rest_df = pd.DataFrame(columns=['timestamp', 'price'])
@@ -127,13 +129,23 @@ class DashDataVisualizer:
       )
 
       if not self.rest_df.empty and not self.mqtt_df.empty:
-        # Create difference DataFrame using the timestamps from REST data
-        diff_df = pd.DataFrame(
-          {
-            'timestamp': self.rest_df['timestamp'],
-            'difference': abs(self.rest_df['price'] - self.mqtt_df['price'].iloc[-1]),
-          }
+        # Merge DataFrames on timestamp
+        merged_df = pd.merge(
+          self.rest_df,
+          self.mqtt_df,
+          on='timestamp',
+          how='inner',
+          suffixes=('_rest', '_mqtt')
         )
+
+        # Calculate differences for matching timestamps
+        diff_df = pd.DataFrame({
+          'timestamp': merged_df['timestamp'],
+          'difference': merged_df['price_rest'] - merged_df['price_mqtt']
+        })
+
+        # Sort by timestamp to maintain chronological order
+        diff_df = diff_df.sort_values('timestamp')
 
         diff_fig = px.line(
           diff_df,

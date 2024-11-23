@@ -1,7 +1,7 @@
 import os
 import time
 
-from mqtt.service.mqtt_publish import MQTTPublisher
+from mqtt.service.mqtt_publisher import MQTTPublisher
 from util.generate_time_value import generate_time_value
 
 

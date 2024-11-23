@@ -21,4 +21,7 @@ python_version = "3.12"
 python_full_version = "3.12.5"
 
 [scripts]
-start = "python __main.py__.py"
+start = "python __main__.py"
+start-mqtt-server = "python -m mqtt"
+start-rest-server = "python -m rest"
+start-frontend = "python -m frontend"
