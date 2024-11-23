@@ -1,0 +1,6 @@
+[tool.ruff]
+target-version = "py312"
+fixable = ["F401", "E501"]
+select = ["E", "F", "I"]
+exclude = ["venv", ".mypy_cache", "__pycache__"]
+line-length = 88
