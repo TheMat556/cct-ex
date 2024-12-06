@@ -33,3 +33,11 @@ To start the frontend, use:
 pipenv run start-frontend
 ```
 
+## Start the containerized node:
+```bash
+docker build -t python-rest-test .
+```
+
+```bash
+docker run -tid -p 0.0.0.0:5000:5000 python-rest-test
+```

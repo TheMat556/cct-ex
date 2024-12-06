@@ -18,7 +18,6 @@ ruff = "*"
 
 [requires]
 python_version = "3.12"
-python_full_version = "3.12.5"
 
 [scripts]
 start = "python __main__.py"

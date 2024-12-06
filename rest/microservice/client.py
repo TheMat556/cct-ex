@@ -4,7 +4,7 @@ import time
 
 
 class RESTSubscriber:
-  def __init__(self, url='http://127.0.0.1:5000/timestamps', interval=5):
+  def __init__(self, url='http://0.0.0.0:5000/timestamps', interval=5):
     self.url = url
     self.interval = interval
     self._subscribers = []
