@@ -7,6 +7,7 @@ import plotly.express as px
 import threading
 from datetime import datetime
 
+from frontend.app.middleware import FrontEndMiddleware
 from mqtt.service.mqtt_subscriber import MQTTSubscriber
 from rest.microservice.client import RESTSubscriber
 
@@ -22,11 +23,8 @@ class DashDataVisualizer:
     # Initialize Dash app
     self.app = dash.Dash(__name__)
 
-    # Initialize clients
-    self.rest_client = RESTSubscriber(url=rest_url, interval=5)
-    self.mqtt_client = MQTTSubscriber(
-      broker=mqtt_broker, port=mqtt_port, topic=mqtt_topic
-    )
+    self._frontend_middleware = FrontEndMiddleware(rest_url,mqtt_broker,mqtt_port,mqtt_topic)
+    self._frontend_middleware.start()
 
     # Initialize empty DataFrames with correct columns
     self.rest_df = pd.DataFrame(columns=['timestamp', 'price'])
@@ -161,6 +159,7 @@ class DashDataVisualizer:
   def _rest_data_callback(self, data):
     try:
       message = json.loads(data)
+      print("REST - MESSAGE", message)
       # Convert timestamp to datetime
       timestamp = self._convert_timestamp(message['timestamp'])
 
@@ -176,6 +175,7 @@ class DashDataVisualizer:
   def _mqtt_data_callback(self, data):
     try:
       # Convert timestamp to datetime
+      print("MQTT - DATA", data)
       timestamp = self._convert_timestamp(data['timestamp'])
 
       # Create DataFrame from single MQTT message
@@ -187,11 +187,6 @@ class DashDataVisualizer:
     except Exception as e:
       print(f'Error processing MQTT data: {e}')
 
-  def start(self):
-    # Subscribe clients
-    self.rest_client.subscribe(self._rest_data_callback)
-    self.mqtt_client.subscribe(self._mqtt_data_callback)
-
     # Start clients in background
     client_thread = threading.Thread(target=self._start_clients, daemon=True)
     client_thread.start()
@@ -199,11 +194,8 @@ class DashDataVisualizer:
     # Run Dash app
     self.app.run_server(debug=True, use_reloader=False)
 
-  def _start_clients(self):
-    self.rest_client.start()
-    self.mqtt_client.start()
-
-
 if __name__ == '__main__':
-  visualizer = DashDataVisualizer()
-  visualizer.start()
+    visualizer = DashDataVisualizer()
+
+    # Run Dash app
+    visualizer.app.run_server(debug=True, use_reloader=False)

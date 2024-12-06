@@ -12,6 +12,7 @@ python-dotenv = "*"
 requests = "*"
 plotly = "*"
 dash = "*"
+influxdb-client = "*"
 
 [dev-packages]
 ruff = "*"
