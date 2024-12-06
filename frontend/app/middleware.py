@@ -33,6 +33,7 @@ class FrontEndMiddleware:
   def _rest_data_callback(self, data):
     try:
       message = json.loads(data)
+      print("WRITE DATA", message)
       influx_client.write_data(
         measurement="REST",
         tags={"tag_key": "energyprice"},

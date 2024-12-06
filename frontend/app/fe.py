@@ -8,8 +8,7 @@ import threading
 from datetime import datetime
 
 from frontend.app.middleware import FrontEndMiddleware
-from mqtt.service.mqtt_subscriber import MQTTSubscriber
-from rest.microservice.client import RESTSubscriber
+from influxdb.influx_subscriber import InfluxDBSubscriber
 
 
 class DashDataVisualizer:
@@ -19,12 +18,22 @@ class DashDataVisualizer:
     mqtt_broker='broker.hivemq.com',
     mqtt_port=1883,
     mqtt_topic='thagenberg',
+    influx_bucket='newbucket',
+    influx_measurements=['mqtt', 'rest']
   ):
     # Initialize Dash app
     self.app = dash.Dash(__name__)
 
-    self._frontend_middleware = FrontEndMiddleware(rest_url,mqtt_broker,mqtt_port,mqtt_topic)
+    self._frontend_middleware = FrontEndMiddleware(rest_url, mqtt_broker, mqtt_port, mqtt_topic)
     self._frontend_middleware.start()
+
+    # Initialize InfluxDBSubscriber
+    self.influx_subscriber = InfluxDBSubscriber(influx_bucket, influx_measurements)
+    self.influx_subscriber.start()
+
+    # Subscribe to InfluxDB measurements
+    for measurement in influx_measurements:
+      self.influx_subscriber.subscribe(measurement, self._influx_data_callback)
 
     # Initialize empty DataFrames with correct columns
     self.rest_df = pd.DataFrame(columns=['timestamp', 'price'])
@@ -35,6 +44,22 @@ class DashDataVisualizer:
 
     # Set up callbacks
     self._setup_callbacks()
+
+  def _influx_data_callback(self, data):
+    try:
+      measurement = data['_measurement']
+      timestamp = self._convert_timestamp(data['_time'])
+      price = data['_value']
+
+      new_data = pd.DataFrame([{'timestamp': timestamp, 'price': price}])
+
+      if measurement == 'mqtt':
+        self.mqtt_df = pd.concat([self.mqtt_df, new_data], ignore_index=True).tail(50)
+      elif measurement == 'rest':
+        self.rest_df = pd.concat([self.rest_df, new_data], ignore_index=True).tail(50)
+
+    except Exception as e:
+      print(f'Error processing InfluxDB data: {e}')
 
   def _setup_layout(self):
     self.app.layout = html.Div(
