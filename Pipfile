@@ -13,6 +13,7 @@ requests = "*"
 plotly = "*"
 dash = "*"
 influxdb-client = "*"
+ruff = "*"
 
 [dev-packages]
 ruff = "*"

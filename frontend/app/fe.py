@@ -18,13 +18,15 @@ class DashDataVisualizer:
     mqtt_broker='broker.hivemq.com',
     mqtt_port=1883,
     mqtt_topic='thagenberg',
-    influx_bucket='newbucket',
-    influx_measurements=['mqtt', 'rest']
+    influx_bucket='readtst',
+    influx_measurements=['MQTT', 'REST'],
   ):
     # Initialize Dash app
     self.app = dash.Dash(__name__)
 
-    self._frontend_middleware = FrontEndMiddleware(rest_url, mqtt_broker, mqtt_port, mqtt_topic)
+    self._frontend_middleware = FrontEndMiddleware(
+      rest_url, mqtt_broker, mqtt_port, mqtt_topic
+    )
     self._frontend_middleware.start()
 
     # Initialize InfluxDBSubscriber
@@ -52,10 +54,9 @@ class DashDataVisualizer:
       price = data['_value']
 
       new_data = pd.DataFrame([{'timestamp': timestamp, 'price': price}])
-
-      if measurement == 'mqtt':
+      if measurement == 'MQTT':
         self.mqtt_df = pd.concat([self.mqtt_df, new_data], ignore_index=True).tail(50)
-      elif measurement == 'rest':
+      elif measurement == 'REST':
         self.rest_df = pd.concat([self.rest_df, new_data], ignore_index=True).tail(50)
 
     except Exception as e:
@@ -91,9 +92,12 @@ class DashDataVisualizer:
     except (ValueError, TypeError):
       try:
         # Try parsing as ISO format
-        return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        tst = datetime.fromisoformat(str(timestamp))
+        return tst
       except (ValueError, AttributeError):
-        return timestamp  # Return original if parsing fails
+        return datetime.strptime(
+          timestamp, '%Y-%m-%dT%H:%M:%S.%f%z'
+        )  # Return parsed datetime if possible
 
   def _get_time_range(self):
     """Get the common time range for all graphs."""
@@ -158,14 +162,16 @@ class DashDataVisualizer:
           self.mqtt_df,
           on='timestamp',
           how='inner',
-          suffixes=('_rest', '_mqtt')
+          suffixes=('_rest', '_mqtt'),
         )
 
         # Calculate differences for matching timestamps
-        diff_df = pd.DataFrame({
-          'timestamp': merged_df['timestamp'],
-          'difference': merged_df['price_rest'] - merged_df['price_mqtt']
-        })
+        diff_df = pd.DataFrame(
+          {
+            'timestamp': merged_df['timestamp'],
+            'difference': merged_df['price_rest'] - merged_df['price_mqtt'],
+          }
+        )
 
         # Sort by timestamp to maintain chronological order
         diff_df = diff_df.sort_values('timestamp')
@@ -184,7 +190,6 @@ class DashDataVisualizer:
   def _rest_data_callback(self, data):
     try:
       message = json.loads(data)
-      print("REST - MESSAGE", message)
       # Convert timestamp to datetime
       timestamp = self._convert_timestamp(message['timestamp'])
 
@@ -200,7 +205,6 @@ class DashDataVisualizer:
   def _mqtt_data_callback(self, data):
     try:
       # Convert timestamp to datetime
-      print("MQTT - DATA", data)
       timestamp = self._convert_timestamp(data['timestamp'])
 
       # Create DataFrame from single MQTT message
@@ -219,8 +223,9 @@ class DashDataVisualizer:
     # Run Dash app
     self.app.run_server(debug=True, use_reloader=False)
 
-if __name__ == '__main__':
-    visualizer = DashDataVisualizer()
 
-    # Run Dash app
-    visualizer.app.run_server(debug=True, use_reloader=False)
+if __name__ == '__main__':
+  visualizer = DashDataVisualizer()
+
+  # Run Dash app
+  visualizer.app.run_server(debug=True, use_reloader=False)

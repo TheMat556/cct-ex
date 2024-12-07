@@ -1,4 +1,3 @@
-import threading
 
 from frontend.app.fe import DashDataVisualizer
 
