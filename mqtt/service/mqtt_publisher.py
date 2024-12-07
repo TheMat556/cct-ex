@@ -1,9 +1,6 @@
-import json
 import os
-import threading
 import time
 
-import numpy as np
 import paho.mqtt.client as mqtt
 
 from util.generate_time_value import generate_time_value

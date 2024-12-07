@@ -15,4 +15,4 @@ class TimestampApp:
     return jsonify(generate_time_value())
 
   def run(self, debug=False, port=5000):
-    self.app.run(host="0.0.0.0", debug=debug, port=port)
+    self.app.run(host='0.0.0.0', debug=debug, port=port)

@@ -7,8 +7,8 @@ import plotly.express as px
 import threading
 from datetime import datetime
 
-from mqtt.service.mqtt_subscriber import MQTTSubscriber
-from rest.microservice.client import RESTSubscriber
+from frontend.app.middleware import FrontEndMiddleware
+from influxdb.influx_subscriber import InfluxDBSubscriber
 
 
 class DashDataVisualizer:
@@ -18,15 +18,24 @@ class DashDataVisualizer:
     mqtt_broker='broker.hivemq.com',
     mqtt_port=1883,
     mqtt_topic='thagenberg',
+    influx_bucket='readtst',
+    influx_measurements=['MQTT', 'REST'],
   ):
     # Initialize Dash app
     self.app = dash.Dash(__name__)
 
-    # Initialize clients
-    self.rest_client = RESTSubscriber(url=rest_url, interval=5)
-    self.mqtt_client = MQTTSubscriber(
-      broker=mqtt_broker, port=mqtt_port, topic=mqtt_topic
+    self._frontend_middleware = FrontEndMiddleware(
+      rest_url, mqtt_broker, mqtt_port, mqtt_topic
     )
+    self._frontend_middleware.start()
+
+    # Initialize InfluxDBSubscriber
+    self.influx_subscriber = InfluxDBSubscriber(influx_bucket, influx_measurements)
+    self.influx_subscriber.start()
+
+    # Subscribe to InfluxDB measurements
+    for measurement in influx_measurements:
+      self.influx_subscriber.subscribe(measurement, self._influx_data_callback)
 
     # Initialize empty DataFrames with correct columns
     self.rest_df = pd.DataFrame(columns=['timestamp', 'price'])
@@ -37,6 +46,21 @@ class DashDataVisualizer:
 
     # Set up callbacks
     self._setup_callbacks()
+
+  def _influx_data_callback(self, data):
+    try:
+      measurement = data['_measurement']
+      timestamp = self._convert_timestamp(data['_time'])
+      price = data['_value']
+
+      new_data = pd.DataFrame([{'timestamp': timestamp, 'price': price}])
+      if measurement == 'MQTT':
+        self.mqtt_df = pd.concat([self.mqtt_df, new_data], ignore_index=True).tail(50)
+      elif measurement == 'REST':
+        self.rest_df = pd.concat([self.rest_df, new_data], ignore_index=True).tail(50)
+
+    except Exception as e:
+      print(f'Error processing InfluxDB data: {e}')
 
   def _setup_layout(self):
     self.app.layout = html.Div(
@@ -68,9 +92,12 @@ class DashDataVisualizer:
     except (ValueError, TypeError):
       try:
         # Try parsing as ISO format
-        return datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+        tst = datetime.fromisoformat(str(timestamp))
+        return tst
       except (ValueError, AttributeError):
-        return timestamp  # Return original if parsing fails
+        return datetime.strptime(
+          timestamp, '%Y-%m-%dT%H:%M:%S.%f%z'
+        )  # Return parsed datetime if possible
 
   def _get_time_range(self):
     """Get the common time range for all graphs."""
@@ -135,14 +162,16 @@ class DashDataVisualizer:
           self.mqtt_df,
           on='timestamp',
           how='inner',
-          suffixes=('_rest', '_mqtt')
+          suffixes=('_rest', '_mqtt'),
         )
 
         # Calculate differences for matching timestamps
-        diff_df = pd.DataFrame({
-          'timestamp': merged_df['timestamp'],
-          'difference': merged_df['price_rest'] - merged_df['price_mqtt']
-        })
+        diff_df = pd.DataFrame(
+          {
+            'timestamp': merged_df['timestamp'],
+            'difference': merged_df['price_rest'] - merged_df['price_mqtt'],
+          }
+        )
 
         # Sort by timestamp to maintain chronological order
         diff_df = diff_df.sort_values('timestamp')
@@ -187,11 +216,6 @@ class DashDataVisualizer:
     except Exception as e:
       print(f'Error processing MQTT data: {e}')
 
-  def start(self):
-    # Subscribe clients
-    self.rest_client.subscribe(self._rest_data_callback)
-    self.mqtt_client.subscribe(self._mqtt_data_callback)
-
     # Start clients in background
     client_thread = threading.Thread(target=self._start_clients, daemon=True)
     client_thread.start()
@@ -199,11 +223,9 @@ class DashDataVisualizer:
     # Run Dash app
     self.app.run_server(debug=True, use_reloader=False)
 
-  def _start_clients(self):
-    self.rest_client.start()
-    self.mqtt_client.start()
-
 
 if __name__ == '__main__':
   visualizer = DashDataVisualizer()
-  visualizer.start()
+
+  # Run Dash app
+  visualizer.app.run_server(debug=True, use_reloader=False)
