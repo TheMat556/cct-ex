@@ -1,6 +1,8 @@
 # Getting Started
 
-This guide will help you set up and run the server, client, and node.
+This guide will help you set up and run the server, client, and node. Below is an overview of the architecture:
+
+![CCT Architecture](cct_architecture.png)
 
 ## Prerequisites
 
